@@ -1,11 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchProducts } from "../lib/api";
+import { useCart } from "../cart/CartContext";
+
 
 export default function ShopPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["products"],
     queryFn: fetchProducts,
   });
+  const { add } = useCart();
+
 
   if (isLoading) return <div>Loading products…</div>;
   if (error) return <div className="text-red-600">Failed to load products.</div>;
@@ -34,7 +38,7 @@ export default function ShopPage() {
 
             <button
               className="mt-3 w-full rounded-lg bg-black px-3 py-2 text-sm text-white"
-              onClick={() => alert("Cart comes on Day 4")}
+              onClick={() => add(p)}
             >
               Add to cart
             </button>

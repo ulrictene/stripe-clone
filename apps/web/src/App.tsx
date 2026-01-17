@@ -1,7 +1,11 @@
 import { Routes, Route, Navigate, Link } from "react-router-dom";
-import ShopPage from "./pages/shopPage";
+import ShopPage from "./pages/ShopPage";
+import CartPage from "./pages/CartPage";
+import { useCart } from "./cart/CartContext";
 
 export default function App() {
+  const { totalItems } = useCart();
+
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b bg-white">
@@ -9,7 +13,10 @@ export default function App() {
           <Link to="/shop" className="font-semibold">
             Stripe Checkout Clone
           </Link>
-          <div className="text-sm text-slate-600">Products</div>
+
+          <Link to="/cart" className="text-sm">
+            Cart ({totalItems})
+          </Link>
         </div>
       </header>
 
@@ -17,9 +24,11 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/shop" replace />} />
           <Route path="/shop" element={<ShopPage />} />
+          <Route path="/cart" element={<CartPage />} />
         </Routes>
       </main>
     </div>
   );
 }
+
 
