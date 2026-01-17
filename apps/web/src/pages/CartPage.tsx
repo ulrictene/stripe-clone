@@ -75,7 +75,10 @@ export default function CartPage() {
         </button>
 
         <div className="mt-2 text-xs text-slate-500">
-          Checkout comes Day 5.
+          <button onClick={() => nav("/checkout")} className="mt-4 w-full bg-black p-2 text-white">
+          Proceed to checkout
+          </button>
+
         </div>
       </div>
     </div>

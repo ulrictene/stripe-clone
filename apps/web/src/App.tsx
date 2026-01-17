@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, Link } from "react-router-dom";
 import ShopPage from "./pages/ShopPage";
 import CartPage from "./pages/CartPage";
 import { useCart } from "./cart/CartContext";
+import CheckoutPage from "./pages/CheckoutPage";
 
 export default function App() {
   const { totalItems } = useCart();
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/shop" replace />} />
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
         </Routes>
       </main>
     </div>
