@@ -1,12 +1,11 @@
 {
   "name": "stripe-clone",
-  "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "workspaces": ["apps/*"],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": ""
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "dev:api": "npm -w apps/api run dev"
+  }
 }
+
