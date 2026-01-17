@@ -69,7 +69,7 @@ export default function CartPage() {
           className="mt-4 w-full rounded-lg bg-black px-3 py-2 text-sm text-white"
           onClick={() => nav("/checkout")}
           disabled
-          title="Checkout comes Day 5"
+          title="Checkout"
         >
           Proceed to checkout
         </button>
