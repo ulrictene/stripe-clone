@@ -5,7 +5,10 @@ import express from "express";
 import cors from "cors";
 import { prisma } from "./prisma";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+if (!process.env.STRIPE_SECRET_KEY) throw new Error("Missing STRIPE_SECRET_KEY");
+if (!process.env.STRIPE_WEBHOOK_SECRET) throw new Error("Missing STRIPE_WEBHOOK_SECRET");
+if (!process.env.CLIENT_URL) throw new Error("Missing CLIENT_URL");
+
 
 const CheckoutSchema = z.object({
   email: z.string().email(),
@@ -20,7 +23,7 @@ const CheckoutSchema = z.object({
   items: z.array(
     z.object({
       productId: z.string(),
-      quantity: z.number().int().min(1),
+      quantity: z.coerce.number().int().min(1),
     })
   ).min(1),
 });
@@ -28,8 +31,67 @@ const CheckoutSchema = z.object({
 
 const app = express();
 
-app.use(cors({ origin: true })); // fine for local dev today
+app.use(cors({ origin: "http://localhost:5173"}));
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+app.post(
+  "/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    if (!sig || typeof sig !== "string") {
+      return res.status(400).send("Missing Stripe signature");
+    }
+
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET!
+      );
+    } catch (err: any) {
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Handle event
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+      const orderId = session.metadata?.orderId;
+      const sessionId = session.id;
+
+      // Idempotent update: mark PAID if we find the order by metadata or session id
+      await prisma.order.updateMany({
+        where: {
+          OR: [
+            { id: orderId ?? "__nope__" },
+            { stripeSessionId: sessionId },
+          ],
+          status: "PENDING",
+        },
+        data: { status: "PAID" },
+      });
+    }
+
+    res.json({ received: true });
+  }
+);
+
 app.use(express.json());
+
+app.get("/orders/by-session/:sessionId", async (req, res) => {
+  const { sessionId } = req.params;
+
+  const order = await prisma.order.findFirst({
+    where: { stripeSessionId: sessionId },
+    include: { items: true, address: true },
+  });
+
+  if (!order) return res.status(404).json({ error: "Order not found" });
+
+  res.json(order);
+});
+
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true });

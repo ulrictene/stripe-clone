@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useCallback,
+} from "react";
 import type { Product } from "../lib/api";
 
 type CartItem = {
@@ -13,7 +20,6 @@ type CartItem = {
 type State = { items: CartItem[] };
 
 type Action =
-  | { type: "HYDRATE"; state: State }
   | { type: "ADD"; product: Product }
   | { type: "REMOVE"; productId: string }
   | { type: "SET_QTY"; productId: string; quantity: number }
@@ -23,9 +29,6 @@ const STORAGE_KEY = "stripe-clone-cart-v1";
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
-    case "HYDRATE":
-      return action.state;
-
     case "ADD": {
       const existing = state.items.find((i) => i.productId === action.product.id);
       if (existing) {
@@ -56,11 +59,12 @@ function reducer(state: State, action: Action): State {
 
     case "SET_QTY":
       return {
-        items: state.items.map((i) =>
-          i.productId === action.productId
-            ? { ...i, quantity: Math.max(1, Math.min(99, action.quantity)) }
-            : i
-        ),
+        items: state.items
+          .map((i) =>
+            i.productId === action.productId
+              ? { ...i, quantity: Math.max(1, Math.min(99, action.quantity)) }
+              : i
+          )
       };
 
     case "CLEAR":
@@ -82,27 +86,26 @@ const CartCtx = createContext<{
 } | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { items: [] });
-  const [hydrated, setHydrated] = useState(false);
-  // load
+  // ✅ Lazy init: hydrate synchronously from localStorage (no race condition)
+  const [state, dispatch] = useReducer(
+    reducer,
+    { items: [] },
+    (initial) => {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return initial;
+      try {
+        return JSON.parse(raw) as State;
+      } catch {
+        return initial;
+      }
+    }
+  );
+
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-    try {
-      dispatch({ type: "HYDRATE", state: JSON.parse(raw) });
-    } catch {
-      // ignore
-    }}
-     setHydrated(true);
-  }, []);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
 
-  // persist
-useEffect(() => {
-  if (!hydrated) return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}, [state, hydrated]);
-
-
+  // ✅ Derived values
   const subtotalCents = useMemo(
     () => state.items.reduce((sum, i) => sum + i.unitPriceCents * i.quantity, 0),
     [state.items]
@@ -113,15 +116,27 @@ useEffect(() => {
     [state.items]
   );
 
-  const value = {
-    items: state.items,
-    totalItems,
-    subtotalCents,
-    add: (p: Product) => dispatch({ type: "ADD", product: p }),
-    remove: (id: string) => dispatch({ type: "REMOVE", productId: id }),
-    setQty: (id: string, qty: number) => dispatch({ type: "SET_QTY", productId: id, quantity: qty }),
-    clear: () => dispatch({ type: "CLEAR" }),
-  };
+  // ✅ Stable callbacks (prevents useEffect loops like Maximum update depth exceeded)
+  const add = useCallback((p: Product) => dispatch({ type: "ADD", product: p }), []);
+  const remove = useCallback((id: string) => dispatch({ type: "REMOVE", productId: id }), []);
+  const setQty = useCallback(
+    (id: string, qty: number) => dispatch({ type: "SET_QTY", productId: id, quantity: qty }),
+    []
+  );
+  const clear = useCallback(() => dispatch({ type: "CLEAR" }), []);
+
+  const value = useMemo(
+    () => ({
+      items: state.items,
+      totalItems,
+      subtotalCents,
+      add,
+      remove,
+      setQty,
+      clear,
+    }),
+    [state.items, totalItems, subtotalCents, add, remove, setQty, clear]
+  );
 
   return <CartCtx.Provider value={value}>{children}</CartCtx.Provider>;
 }

@@ -3,6 +3,8 @@ import ShopPage from "./pages/ShopPage";
 import CartPage from "./pages/CartPage";
 import { useCart } from "./cart/CartContext";
 import CheckoutPage from "./pages/CheckoutPage";
+import SuccessPage from "./pages/SuccessPage";
+
 
 export default function App() {
   const { totalItems } = useCart();
@@ -27,6 +29,7 @@ export default function App() {
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/success" element={<SuccessPage />} />
         </Routes>
       </main>
     </div>
